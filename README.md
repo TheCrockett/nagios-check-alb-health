@@ -5,3 +5,6 @@ Usage: ```check_alb_health.py -a <asg_name> -w <warn_level> -c <crit_level> -r <
 
 The check_tg_healthy_count.py script will check a target group for a minimum number of healthy targets (hosts). 
 Usage: ```check_tg_healthy_count.py -t <target_group_name> -w <warn_level> -c <crit_level> -r <aws_region>```
+
+IAM Permissions
+The user/role that runs this script will need access to the elbv2 ```describe_target_groups``` and ```describe_target_health``` permissions only.

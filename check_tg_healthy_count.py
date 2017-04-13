@@ -49,7 +49,7 @@ def main():
 	validate_thresholds(warn, crit)
 	
 	if not tg:
-		print("Error: No queue specified.")
+		print("Error: No target group specified.")
 		print(USAGE)
 		sys.exit(3)
 	if not region:
