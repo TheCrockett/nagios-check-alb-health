@@ -56,7 +56,7 @@ def main():
 		print("Warning, No region specified, defaulting to us-east-1")
 		aws_region = "us-east-1"
 	unhealthy_count = 0
-	
+	max_unhealthy_count = 0
 	try:
 		client = boto3.client('elbv2',region)
 		lb_list = client.describe_load_balancers(Names=[alb])
@@ -68,6 +68,9 @@ def main():
 				for target in targets['TargetHealthDescriptions']:
 					if target['TargetHealth']['State'] != "healthy":
 						unhealthy_count = unhealthy_count+1
+						if unhealthy_count > max_unhealthy_count:
+							max_unhealth_target = unhealthy_count
+						
 	except ClientError as err:
 		print("Aws Error: {}".format(err))
 		sys.exit(3)
@@ -75,14 +78,14 @@ def main():
     # Get queue length, compare to thresholds, and take appropriate action
 	
 
-	if int(unhealthy_count) < int(warn):
-		print('ALB OK: "{}" contains {} unhealthy targets.'.format(alb, unhealthy_count))
+	if int(max_unhealthy_count) < int(warn):
+		print('ALB OK: "{}" contains {} unhealthy targets.'.format(alb, max_unhealthy_count))
 		sys.exit(0)
-	elif int(unhealthy_count) >= int(crit):
-		print('Alb CRITICAL: "{}" contains {} unhealthy targets.'.format(alb, unhealthy_count))
+	elif int(max_unhealthy_count) > int(crit):
+		print('Alb CRITICAL: "{}" contains {} unhealthy targets.'.format(alb, max_unhealthy_count))
 		sys.exit(2)
 	else:
-		print('ALB WARNING: "{}" contains {} unhealthy targets.'.format(alb, unhealthy_count))
+		print('ALB WARNING: "{}" contains {} unhealthy targets.'.format(alb, max_unhealthy_count))
 		sys.exit(1)
 	
 if __name__ == '__main__':
