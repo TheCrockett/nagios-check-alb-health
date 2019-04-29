@@ -6,6 +6,7 @@ from optparse import OptionParser
 import boto3
 from botocore.exceptions import ClientError
 
+
 USAGE = """\nUsage: check_alb_health.py -a <alb name> [-w <warning threshold>] -c <critical threshold> [-r <aws region>]"""
 config = configparser.ConfigParser()
 
@@ -24,6 +25,7 @@ def validate_thresholds(warn, crit):
 		sys.exit(3)
 
 def main():
+	unhealthy = ""
 	# Parse arguments
 	parser = OptionParser()
 	parser.add_option("-a", "--alb", dest="alb", help="Amazon ALB name")
@@ -56,7 +58,6 @@ def main():
 		print("Warning, No region specified, defaulting to us-east-1")
 		aws_region = "us-east-1"
 	unhealthy_count = 0
-	max_unhealthy_count = 0
 	try:
 		client = boto3.client('elbv2',region)
 		lb_list = client.describe_load_balancers(Names=[alb])
@@ -65,27 +66,30 @@ def main():
 			tg_list = client.describe_target_groups(LoadBalancerArn=lb['LoadBalancerArn'])
 			for tg in tg_list['TargetGroups']:
 				targets = client.describe_target_health(TargetGroupArn=tg['TargetGroupArn'])
+				# Check for Target Groups with crit nodes registered
+				if int(len(targets['TargetHealthDescriptions'])) == int(crit):
+					unhealthy_count = unhealthy_count+1
+					unhealthy = "{}{}:".format(unhealthy,tg['TargetGroupName'])
 				for target in targets['TargetHealthDescriptions']:
 					if target['TargetHealth']['State'] != "healthy":
-						unhealthy_count = unhealthy_count+1
-						if unhealthy_count > max_unhealthy_count:
-							max_unhealth_target = unhealthy_count
+						unhealthy_count = unhealthy_count+1	
+						unhealthy = "{}{}:".format(unhealthy,tg['TargetGroupName'])
 						
 	except ClientError as err:
 		print("Aws Error: {}".format(err))
 		sys.exit(3)
 
     # Get queue length, compare to thresholds, and take appropriate action
-	
 
-	if int(max_unhealthy_count) < int(warn):
-		print('ALB OK: "{}" contains {} unhealthy targets.'.format(alb, max_unhealthy_count))
+
+	if int(unhealthy_count) <= int(warn):
+		print('ALB OK: "{}" contains {} unhealthy targets.'.format(alb, unhealthy_count))
 		sys.exit(0)
-	elif int(max_unhealthy_count) > int(crit):
-		print('Alb CRITICAL: "{}" contains {} unhealthy targets.'.format(alb, max_unhealthy_count))
+	elif int(unhealthy_count) > int(crit):
+		print('Alb CRITICAL: "{}" contains {} unhealthy targets: {}'.format(alb, unhealthy_count,unhealthy))
 		sys.exit(2)
 	else:
-		print('ALB WARNING: "{}" contains {} unhealthy targets.'.format(alb, max_unhealthy_count))
+		print('ALB WARNING: "{}" contains {} unhealthy targets: {}'.format(alb, nhealthy_count,unhealthy))
 		sys.exit(1)
 	
 if __name__ == '__main__':
